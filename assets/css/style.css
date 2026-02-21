@@ -1,9 +1,10 @@
 body {
   font-family: Arial, sans-serif;
-  background-color: #282828;
+  background: linear-gradient(160deg, #1f1f1f, #2c2c2c);
   color: #ffffff;
   margin: 0;
   padding: 0;
+  min-height: 100vh;
 }
 
 .container, .login-container, .dash-container, .editor-container {
@@ -16,7 +17,26 @@ body {
 }
 
 h1, h2 {
-  color: #858482;
+  color: #efefef;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 12px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+main {
+  width: min(1100px, 92%);
+  margin: 25px auto;
 }
 
 input, button {
@@ -24,7 +44,7 @@ input, button {
   width: 100%;
   margin: 10px 0;
   padding: 10px;
-  border-radius: 5px;
+  border-radius: 10px;
   border: none;
 }
 
@@ -32,9 +52,175 @@ button {
   background-color: #858482;
   color: #fff;
   cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
 }
 
 button:hover {
   background-color: #ffffff;
   color: #282828;
+}
+
+.secondary-btn {
+  background: #4e4e4e;
+}
+
+.new-doc {
+  max-width: 230px;
+}
+
+.document-list {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.doc-card {
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #444, #343434);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
+}
+
+.doc-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.doc-card p {
+  margin: 8px 0 14px;
+  color: #c7c7c7;
+  font-size: 0.9rem;
+}
+
+.doc-card button {
+  width: auto;
+  padding: 9px 18px;
+  border-radius: 999px;
+}
+
+#editor {
+  margin-top: 12px;
+  min-height: 65vh;
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.18);
+  outline: none;
+}
+
+#editor:empty::before {
+  content: attr(placeholder);
+  color: #a5a5a5;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.editor-actions button {
+  width: auto;
+  padding: 10px 16px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.hidden {
+  display: none;
+}
+
+.modal-content {
+  width: min(440px, 100%);
+  background: #242424;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.checkbox-row input {
+  width: auto;
+  margin: 0;
+}
+
+.warning-text {
+  color: #ffbd6f;
+  font-size: 0.88rem;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.profile-island {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #131313;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  padding: 6px 12px 6px 6px;
+  cursor: pointer;
+}
+
+.profile-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.profile-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #1f1f1f;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  min-width: 150px;
+  padding: 8px;
+}
+
+.profile-menu a {
+  display: block;
+  color: #fff;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.profile-menu a:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.profile-island.open .profile-menu {
+  display: block;
+}
+
+.logout-inline {
+  width: auto;
+  min-width: 100px;
 }
