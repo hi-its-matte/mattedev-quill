@@ -229,3 +229,25 @@ function base64ToArrayBuffer(base64) {
   }
   return bytes.buffer;
 }
+const deleteBtn = document.getElementById("delete-btn");
+
+deleteBtn.addEventListener("click", () => {
+  const confirmation = confirm("Sei sicuro di voler eliminare questo documento? Questa operazione non può essere annullata.");
+  if (!confirmation) return;
+
+  const docId = localStorage.getItem("currentDocId");
+  const user = auth.currentUser;
+  if (!docId || !user) return;
+
+  db.collection("users").doc(user.uid).collection("documents").doc(docId)
+    .delete()
+    .then(() => {
+      alert("Documento eliminato!");
+      localStorage.removeItem("currentDocId"); // rimuove riferimento al doc eliminato
+      window.location.href = "dash.html";       // torna alla dashboard
+    })
+    .catch(err => {
+      console.error(err);
+      alert("Errore nell'eliminazione del documento.");
+    });
+});
