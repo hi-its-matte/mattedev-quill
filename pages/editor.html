@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MatteDev Quill - Editor</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  
+</head>
+<body>
+
+  <header>
+    <h1>Editor</h1>
+    <button id="back-btn">← Dashboard</button>
+  </header>
+
+  <main>
+    <div id="editor" contenteditable="true" placeholder="Scrivi qui..."></div>
+    <button id="save-btn">Salva</button>
+  </main>
+
+  <!-- Firebase compat libraries -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script src="/assets/js/editor.js"></script>
+</body>
+</html>

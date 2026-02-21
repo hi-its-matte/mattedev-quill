@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MatteDev Quill - Dashboard</title>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  </head>
+<body>
+
+  <header>
+    <h1>MatteDev Quill - Dashboard</h1>
+    <button id="logout-btn">Logout</button>
+  </header>
+
+  <main>
+    <button class="new-doc" id="new-doc-btn">Nuovo Documento</button>
+    <div class="document-list" id="document-list">
+      <!-- Documenti caricati qui -->
+    </div>
+  </main>
+
+  <!-- Firebase compat libraries -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script src="/assets/js/dash.js"></script>
+</body>
+</html>
