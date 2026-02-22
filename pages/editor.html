@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MatteDev Quill - Editor</title>
   <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
 </head>
 <body>
   <header class="topbar">
@@ -31,6 +32,10 @@
     </div>
 
     <div class="autosave-badge" id="autosave-badge">Auto-save in attesa…</div>
+    <div class="editor-actions">
+      <button id="save-btn">Salva Documento</button>
+      <button id="settings-btn" class="secondary-btn">Impostazioni</button>
+    </div>
     <div id="editor" contenteditable="true" placeholder="Scrivi qui..."></div>
   </main>
 
@@ -47,6 +52,11 @@
       <p class="warning-text" id="crypto-support-warning"></p>
       <div class="modal-buttons">
         <button id="settings-close-btn" class="secondary-btn">Chiudi</button>
+      <input type="password" id="password-input" placeholder="Inserisci una password forte">
+      <p class="warning-text">⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.</p>
+      <div class="modal-buttons">
+        <button id="delete-btn">Elimina Documento</button>
+        <button id="settings-close-btn" class="secondary-btn">Chiudi e Salva</button>
       </div>
     </div>
   </div>
