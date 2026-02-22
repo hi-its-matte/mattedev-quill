@@ -4,26 +4,54 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MatteDev Quill - Editor</title>
-  <link rel="stylesheet" href="/assets/css/style.css">
-  
+  <link rel="stylesheet" href="../assets/css/style.css">
 </head>
 <body>
-
-  <header>
+  <header class="topbar">
     <h1>Editor</h1>
     <button id="back-btn">← Dashboard</button>
   </header>
 
   <main>
+    <div class="toolbar-island" aria-label="Strumenti editor">
+      <button id="save-btn" class="format-btn" title="Salva">💾 Salva</button>
+      <button id="settings-btn" class="secondary-btn format-btn" title="Impostazioni">⚙️</button>
+      <button data-cmd="h1" class="format-btn">H1</button>
+      <button data-cmd="h2" class="format-btn">H2</button>
+      <button data-cmd="h3" class="format-btn">H3</button>
+      <button data-cmd="bold" class="format-btn" title="Grassetto">𝐁</button>
+      <button data-cmd="italic" class="format-btn" title="Corsivo">𝑰</button>
+      <button data-cmd="unorderedList" class="format-btn" title="Elenco">• Lista</button>
+      <button id="insert-link-btn" class="format-btn" title="Inserisci link">🔗 Link</button>
+      <button id="download-btn" class="format-btn" title="Download">⬇️ Download</button>
+    </div>
+
+    <div class="autosave-badge" id="autosave-badge">Auto-save in attesa…</div>
     <div id="editor" contenteditable="true" placeholder="Scrivi qui..."></div>
-    <button id="save-btn">Salva</button>
   </main>
 
-  <!-- Firebase compat libraries -->
+  <div class="modal hidden" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-content">
+      <h2 id="settings-title">Impostazioni documento</h2>
+      <label class="checkbox-row">
+        <input type="checkbox" id="encrypt-toggle">
+        Cifra il documento con password
+      </label>
+      <label for="password-input">Password</label>
+      <input type="password" id="password-input" placeholder="Inserisci una password forte" disabled>
+      <p class="warning-text">⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.</p>
+      <p class="warning-text" id="crypto-support-warning"></p>
+      <div class="modal-buttons">
+        <button id="settings-close-btn" class="secondary-btn">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
-  <script src="/assets/js/editor.js"></script>
+  <script src="../assets/js/editor.js"></script>
 </body>
 </html>
