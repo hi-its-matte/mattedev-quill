@@ -53,6 +53,7 @@ const hasCryptoSupport = Boolean(
 
 let autosaveTimer = null;
 let currentDocTitle = "documento";
+let encryptionValidated = false;
 
 /* =========================
    AUTH STATE
@@ -186,8 +187,11 @@ async function loadDocument(uid) {
   const data = snap.data();
   currentDocTitle = data.title || "documento";
 
+  encryptionValidated = false;
+
   if (!data.isEncrypted) {
     editor.innerHTML = data.content || "";
+    encryptionValidated = true; // non cifrato, autosave OK
     return;
   }
 
@@ -210,6 +214,7 @@ async function loadDocument(uid) {
     passwordInput.value = password;
     encryptToggle.checked = true;
     passwordInput.disabled = false;
+    encryptionValidated = true; // password confermata
   } catch {
     alert("Password errata o dati corrotti.");
   }
@@ -236,7 +241,8 @@ async function saveDocument(isAutoSave) {
   } catch (err) {
     console.error(err);
     autosaveBadge.textContent = "Salvataggio fallito";
-    if (!isAutoSave) alert(err.message);
+    if (!isAutoSave) return; // blocca l’autosave se errore
+    // alert solo per salvataggio manuale
   }
 }
 
@@ -251,6 +257,9 @@ async function buildPayload(content) {
   const password = passwordInput.value;
   if (!password)
     throw new Error("Inserisci password per cifrare.");
+
+  if (!encryptionValidated)
+    throw new Error("Password non confermata, autosave bloccato.");
 
   const encrypted = await encryptText(content, password);
 
@@ -347,6 +356,7 @@ function base64ToArrayBuffer(base64) {
     bytes[i] = binary.charCodeAt(i);
   return bytes.buffer;
 }
+
 /* =========================
    DOWNLOAD SYSTEM
 ========================= */
@@ -354,34 +364,14 @@ function base64ToArrayBuffer(base64) {
 downloadBtn.addEventListener("click", () => {
   const format = downloadFormat.value;
 
-  if (format === "txt") {
-    downloadFile(
-      `${safeFileName(currentDocTitle)}.txt`,
-      htmlToPlainText(editor.innerHTML),
-      "text/plain"
-    );
-    return;
-  }
 
-  if (format === "md") {
     downloadFile(
       `${safeFileName(currentDocTitle)}.md`,
       htmlToMarkdown(editor.innerHTML),
       "text/markdown"
     );
-    return;
-  }
-
-  if (format === "pdf") {
-    downloadPdfFromHtml(editor.innerHTML, currentDocTitle);
-  }
 });
 
-function htmlToPlainText(html) {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
-  return tmp.innerText;
-}
 
 function htmlToMarkdown(html) {
   const root = document.createElement("div");
@@ -422,21 +412,7 @@ function downloadFile(name, content, type) {
   URL.revokeObjectURL(url);
 }
 
-function downloadPdfFromHtml(html, title) {
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    alert("jsPDF non caricato.");
-    return;
-  }
 
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-
-  const text = htmlToPlainText(html);
-  const lines = doc.splitTextToSize(text, 180);
-
-  doc.text(lines, 15, 20);
-  doc.save(`${safeFileName(title)}.pdf`);
-}
 
 function safeFileName(name) {
   return String(name || "documento")

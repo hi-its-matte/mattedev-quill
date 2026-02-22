@@ -4,18 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MatteDev Quill - Dashboard</title>
+  <!-- Usa solo uno dei due CSS, in base a dove si trova il file -->
   <link rel="stylesheet" href="../assets/css/style.css">
-  <link rel="stylesheet" href="/assets/css/style.css">
+  
 </head>
 <body>
+
+  <div class="loading-screen" id="loading">
+  <div class="loading-spinner"></div>
+  <div>Caricamento...</div>
+</div>
+
   <header class="topbar">
     <h1 id="dashboard-title">I tuoi documenti</h1>
     <div class="profile-island" id="profile-island" role="button" tabindex="0" aria-expanded="false">
       <img id="profile-avatar" class="profile-avatar" src="https://via.placeholder.com/40" alt="Avatar utente">
       <span id="profile-name">Utente</span>
       <div class="profile-menu" id="profile-menu">
-        <a href="https://mattedev.com" target="_blank" rel="noopener noreferrer">Impostazioni</a>
-        <a href="https://account.mattedev.com" target="_blank" rel="noopener noreferrer">Impostazioni</a>
+        <a href="https://account.mattedev.com" target="_blank" rel="noopener noreferrer">Account</a>
       </div>
     </div>
     <button id="logout-btn" class="logout-inline">Logout</button>

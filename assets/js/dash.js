@@ -102,3 +102,11 @@ document.addEventListener("click", event => {
     profileIsland.classList.remove("open");
   }
 });
+
+// Mostra il loading screen all'avvio
+  const loading = document.getElementById('loading');
+
+  // Dopo 3 secondi, nasconde il loading screen
+  setTimeout(() => {
+    loading.classList.add('hidden');
+  }, 1000); // 3000ms = 3 secondi
