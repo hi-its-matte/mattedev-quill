@@ -1,3 +1,7 @@
+/* =========================
+   FIREBASE INIT
+========================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyC7Tbqt5FzJK8Z_USkCMWxXiHZp8uRN26A",
   authDomain: "mattedev-account.firebaseapp.com",
@@ -11,31 +15,60 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+/* =========================
+   DOM ELEMENTS
+========================= */
+
 const editor = document.getElementById("editor");
 const saveBtn = document.getElementById("save-btn");
 const backBtn = document.getElementById("back-btn");
+const deleteBtn = document.getElementById("delete-btn");
+
 const settingsBtn = document.getElementById("settings-btn");
 const settingsModal = document.getElementById("settings-modal");
 const settingsCloseBtn = document.getElementById("settings-close-btn");
+
 const encryptToggle = document.getElementById("encrypt-toggle");
 const passwordInput = document.getElementById("password-input");
 const cryptoWarning = document.getElementById("crypto-support-warning");
+
 const autosaveBadge = document.getElementById("autosave-badge");
+
 const linkBtn = document.getElementById("insert-link-btn");
 const formatButtons = document.querySelectorAll(".format-btn[data-cmd]");
+
 const downloadBtn = document.getElementById("download-btn");
 const downloadFormat = document.getElementById("download-format");
 
-const hasCryptoSupport = Boolean(globalThis.crypto && globalThis.crypto.subtle && globalThis.TextEncoder && globalThis.TextDecoder);
+/* =========================
+   GLOBAL STATE
+========================= */
+
+const hasCryptoSupport = Boolean(
+  globalThis.crypto &&
+  globalThis.crypto.subtle &&
+  globalThis.TextEncoder &&
+  globalThis.TextDecoder
+);
 
 let autosaveTimer = null;
 let currentDocTitle = "documento";
 
-let encryptionState = {
-  isEncrypted: false,
-  salt: null,
-  iv: null
-};
+/* =========================
+   AUTH STATE
+========================= */
+
+auth.onAuthStateChanged(user => {
+  if (!user) {
+    window.location.href = "login.html";
+  } else {
+    loadDocument(user.uid);
+  }
+});
+
+/* =========================
+   EVENT LISTENERS
+========================= */
 
 backBtn.addEventListener("click", () => {
   window.location.href = "dash.html";
@@ -56,24 +89,27 @@ encryptToggle.addEventListener("change", () => {
   if (enabled && !hasCryptoSupport) {
     encryptToggle.checked = false;
     passwordInput.disabled = true;
-    cryptoWarning.textContent = "Cifratura non disponibile in questo browser/contesto. Usa HTTPS o un browser aggiornato.";
-    alert("Cifratura non supportata in questo ambiente.");
+    cryptoWarning.textContent =
+      "Cifratura non disponibile. Usa HTTPS o browser aggiornato.";
+    alert("Web Crypto non supportato.");
   }
 });
 
 if (!hasCryptoSupport) {
-  cryptoWarning.textContent = "Questo ambiente non espone Web Crypto: cifratura disabilitata.";
+  cryptoWarning.textContent =
+    "Questo ambiente non supporta Web Crypto. Cifratura disabilitata.";
 }
 
 formatButtons.forEach(btn => {
   btn.addEventListener("click", () => {
     const cmd = btn.dataset.cmd;
+
     if (cmd === "unorderedList") {
       document.execCommand("insertUnorderedList");
       return;
     }
 
-    if (cmd === "h1" || cmd === "h2" || cmd === "h3") {
+    if (["h1", "h2", "h3"].includes(cmd)) {
       document.execCommand("formatBlock", false, cmd.toUpperCase());
       return;
     }
@@ -85,7 +121,7 @@ formatButtons.forEach(btn => {
 });
 
 linkBtn.addEventListener("click", () => {
-  const url = prompt("Inserisci URL completo (https://...):");
+  const url = prompt("Inserisci URL completo (https://...)");
   if (!url) return;
   document.execCommand("createLink", false, url);
 });
@@ -93,68 +129,62 @@ linkBtn.addEventListener("click", () => {
 editor.addEventListener("input", () => {
   autosaveBadge.textContent = "Modifiche non salvate";
   if (autosaveTimer) clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => {
-    saveDocument(true);
-  }, 8000);
+  autosaveTimer = setTimeout(() => saveDocument(true), 1000);
 });
 
-downloadBtn.addEventListener("click", () => {
-  const format = downloadFormat.value;
-  if (format === "txt") {
-    downloadFile(`${safeFileName(currentDocTitle)}.txt`, htmlToPlainText(editor.innerHTML), "text/plain");
-    return;
-  }
+saveBtn.addEventListener("click", () => saveDocument(false));
 
-  if (format === "md") {
-    downloadFile(`${safeFileName(currentDocTitle)}.md`, htmlToMarkdown(editor.innerHTML), "text/markdown");
-    return;
-  }
+setInterval(() => saveDocument(true), 3000);
 
-  if (format === "pdf") {
-    downloadPdfFromHtml(editor.innerHTML, currentDocTitle);
+deleteBtn.addEventListener("click", async () => {
+  const confirmDelete = confirm("Eliminare definitivamente il documento?");
+  if (!confirmDelete) return;
+
+  const docId = localStorage.getItem("currentDocId");
+  const user = auth.currentUser;
+  if (!docId || !user) return;
+
+  try {
+    await db.collection("users")
+      .doc(user.uid)
+      .collection("documents")
+      .doc(docId)
+      .delete();
+
+    localStorage.removeItem("currentDocId");
+    alert("Documento eliminato.");
+    window.location.href = "dash.html";
+  } catch (err) {
+    console.error(err);
+    alert("Errore durante eliminazione.");
   }
 });
 
-auth.onAuthStateChanged(user => {
-  if (!user) {
-    window.location.href = "login.html";
-  } else {
-    loadDocument(user.uid);
-  }
-});
+/* =========================
+   FIRESTORE LOGIC
+========================= */
 
 async function loadDocument(uid) {
   const docId = localStorage.getItem("currentDocId");
   if (!docId) {
-    alert("Nessun documento selezionato.");
     window.location.href = "dash.html";
     return;
   }
 
-  const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
-  const doc = await docRef.get();
+  const docRef = db.collection("users")
+    .doc(uid)
+    .collection("documents")
+    .doc(docId);
 
-  if (!doc.exists) {
-    alert("Documento non trovato.");
+  const snap = await docRef.get();
+
+  if (!snap.exists) {
     window.location.href = "dash.html";
     return;
   }
 
-  const data = doc.data();
+  const data = snap.data();
   currentDocTitle = data.title || "documento";
-
-  const isEncrypted = Boolean(data.isEncrypted);
-  encryptToggle.checked = isEncrypted;
-  passwordInput.disabled = !isEncrypted;
-
-  if (!isEncrypted) {
-  encryptionState = {
-    isEncrypted: Boolean(data.isEncrypted),
-    salt: data.salt || null,
-    iv: data.iv || null
-  };
-
-  encryptToggle.checked = encryptionState.isEncrypted;
 
   if (!data.isEncrypted) {
     editor.innerHTML = data.content || "";
@@ -162,98 +192,67 @@ async function loadDocument(uid) {
   }
 
   if (!hasCryptoSupport) {
-    editor.innerHTML = "";
-    alert("Questo documento è cifrato ma Web Crypto non è disponibile qui.");
+    alert("Documento cifrato ma Web Crypto non disponibile.");
     return;
   }
 
-  const password = prompt("Documento cifrato: inserisci la password:");
-  if (!password) {
-    editor.innerHTML = "";
-    alert("Password non inserita. Documento non leggibile.");
-  const password = prompt("Questo documento è cifrato. Inserisci la password per leggerlo:");
-  if (!password) {
-    editor.innerHTML = "";
-    alert("Password non inserita. Contenuto non leggibile.");
-    return;
-  }
+  const password = prompt("Documento cifrato. Inserisci password:");
+  if (!password) return;
 
   try {
-    const plaintext = await decryptText(data.content, password, data.salt, data.iv);
-    editor.innerHTML = plaintext;
+    const text = await decryptText(
+      data.content,
+      password,
+      data.salt,
+      data.iv
+    );
+    editor.innerHTML = text;
     passwordInput.value = password;
-  } catch (err) {
-    console.error(err);
-    editor.innerHTML = "";
+    encryptToggle.checked = true;
+    passwordInput.disabled = false;
+  } catch {
     alert("Password errata o dati corrotti.");
   }
 }
 
-saveBtn.addEventListener("click", () => {
-  saveDocument(false);
-});
-
-setInterval(() => {
-  saveDocument(true);
-}, 30000);
-
 async function saveDocument(isAutoSave) {
-    alert("Password errata o dati corrotti. Documento non leggibile.");
-  }
-}
-
-saveBtn.addEventListener("click", async () => {
   const docId = localStorage.getItem("currentDocId");
   const user = auth.currentUser;
   if (!docId || !user) return;
 
   try {
     const payload = await buildPayload(editor.innerHTML);
-
-    await db.collection("users").doc(user.uid).collection("documents").doc(docId)
+    await db.collection("users")
+      .doc(user.uid)
+      .collection("documents")
+      .doc(docId)
       .update(payload);
 
-    alert("Documento salvato!");
+    autosaveBadge.textContent = isAutoSave
+      ? `Auto-save ${new Date().toLocaleTimeString()}`
+      : "Documento salvato";
+
+    if (!isAutoSave) alert("Documento salvato.");
   } catch (err) {
     console.error(err);
-    alert(err.message || "Errore nel salvataggio.");
+    autosaveBadge.textContent = "Salvataggio fallito";
+    if (!isAutoSave) alert(err.message);
   }
-});
+}
 
-setInterval(async () => {
-  const docId = localStorage.getItem("currentDocId");
-  const user = auth.currentUser;
-  if (!docId || !user) return;
-
-  try {
-    const payload = await buildPayload(editor.innerHTML, true);
-    await db.collection("users").doc(user.uid).collection("documents").doc(docId).update(payload);
-  } catch (err) {
-    console.error("Auto-save fallito:", err);
-  }
-}, 30000);
-
-async function buildPayload(content, isAutoSave = false) {
+async function buildPayload(content) {
   if (!encryptToggle.checked) {
-    encryptionState = { isEncrypted: false, salt: null, iv: null };
-    return {
-      content,
-      isEncrypted: false,
-      salt: null,
-      iv: null
-    };
+    return { content, isEncrypted: false, salt: null, iv: null };
   }
+
+  if (!hasCryptoSupport)
+    throw new Error("Web Crypto non disponibile.");
 
   const password = passwordInput.value;
-  if (!password) {
-    if (!isAutoSave) {
-      throw new Error("Inserisci una password per salvare il documento cifrato.");
-    }
-    throw new Error("Auto-save saltato: password mancante per cifratura.");
-  }
+  if (!password)
+    throw new Error("Inserisci password per cifrare.");
 
   const encrypted = await encryptText(content, password);
-  encryptionState = { isEncrypted: true, salt: encrypted.salt, iv: encrypted.iv };
 
   return {
     content: encrypted.cipherText,
@@ -263,11 +262,17 @@ async function buildPayload(content, isAutoSave = false) {
   };
 }
 
+/* =========================
+   CRYPTO MODULE
+========================= */
+
 async function encryptText(text, password) {
   const enc = new TextEncoder();
   const salt = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
+
   const key = await deriveKey(password, salt);
+
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
@@ -283,20 +288,25 @@ async function encryptText(text, password) {
 
 async function decryptText(cipherText, password, saltB64, ivB64) {
   const dec = new TextDecoder();
+
   const salt = new Uint8Array(base64ToArrayBuffer(saltB64));
   const iv = new Uint8Array(base64ToArrayBuffer(ivB64));
   const data = base64ToArrayBuffer(cipherText);
+
   const key = await deriveKey(password, salt);
+
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
     key,
     data
   );
+
   return dec.decode(decrypted);
 }
 
 async function deriveKey(password, salt) {
   const enc = new TextEncoder();
+
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
     enc.encode(password),
@@ -319,134 +329,53 @@ async function deriveKey(password, salt) {
   );
 }
 
+/* =========================
+   UTILITIES
+========================= */
+
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
   let binary = "";
-  bytes.forEach(b => {
-    binary += String.fromCharCode(b);
-  });
+  bytes.forEach(b => binary += String.fromCharCode(b));
   return btoa(binary);
 }
 
 function base64ToArrayBuffer(base64) {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
+  for (let i = 0; i < binary.length; i++)
     bytes[i] = binary.charCodeAt(i);
-  }
   return bytes.buffer;
 }
-const deleteBtn = document.getElementById("delete-btn");
+/* =========================
+   DOWNLOAD SYSTEM
+========================= */
 
-deleteBtn.addEventListener("click", () => {
-  const confirmation = confirm("Sei sicuro di voler eliminare questo documento? Questa operazione non può essere annullata.");
-  if (!confirmation) return;
+downloadBtn.addEventListener("click", () => {
+  const format = downloadFormat.value;
 
-  const docId = localStorage.getItem("currentDocId");
-  const user = auth.currentUser;
-  if (!docId || !user) return;
-
-  try {
-    const payload = await buildPayload(editor.innerHTML, isAutoSave);
-
-    await db.collection("users").doc(user.uid).collection("documents").doc(docId)
-      .update(payload);
-
-    autosaveBadge.textContent = isAutoSave
-      ? `Auto-save completato (${new Date().toLocaleTimeString()})`
-      : "Documento salvato manualmente";
-
-    if (!isAutoSave) alert("Documento salvato!");
-  } catch (err) {
-    console.error(isAutoSave ? "Auto-save fallito:" : err);
-    autosaveBadge.textContent = "Salvataggio fallito";
-    if (!isAutoSave) alert(err.message || "Errore nel salvataggio.");
-  }
-}
-
-async function buildPayload(content, isAutoSave = false) {
-  if (!encryptToggle.checked) {
-    return { content, isEncrypted: false, salt: null, iv: null };
+  if (format === "txt") {
+    downloadFile(
+      `${safeFileName(currentDocTitle)}.txt`,
+      htmlToPlainText(editor.innerHTML),
+      "text/plain"
+    );
+    return;
   }
 
-  if (!hasCryptoSupport) {
-    throw new Error("Web Crypto non disponibile: impossibile cifrare.");
+  if (format === "md") {
+    downloadFile(
+      `${safeFileName(currentDocTitle)}.md`,
+      htmlToMarkdown(editor.innerHTML),
+      "text/markdown"
+    );
+    return;
   }
 
-  const password = passwordInput.value;
-  if (!password) {
-    throw new Error(isAutoSave
-      ? "Auto-save saltato: password cifratura mancante."
-      : "Inserisci una password per salvare il documento cifrato.");
+  if (format === "pdf") {
+    downloadPdfFromHtml(editor.innerHTML, currentDocTitle);
   }
-
-  const encrypted = await encryptText(content, password);
-  return {
-    content: encrypted.cipherText,
-    isEncrypted: true,
-    salt: encrypted.salt,
-    iv: encrypted.iv
-  };
-}
-
-async function encryptText(text, password) {
-  const enc = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await deriveKey(password, salt);
-  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(text));
-
-  return {
-    cipherText: arrayBufferToBase64(encrypted),
-    salt: arrayBufferToBase64(salt.buffer),
-    iv: arrayBufferToBase64(iv.buffer)
-  };
-}
-
-async function decryptText(cipherText, password, saltB64, ivB64) {
-  const dec = new TextDecoder();
-  const salt = new Uint8Array(base64ToArrayBuffer(saltB64));
-  const iv = new Uint8Array(base64ToArrayBuffer(ivB64));
-  const data = base64ToArrayBuffer(cipherText);
-  const key = await deriveKey(password, salt);
-  const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
-  return dec.decode(decrypted);
-}
-
-async function deriveKey(password, salt) {
-  const enc = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    enc.encode(password),
-    { name: "PBKDF2" },
-    false,
-    ["deriveKey"]
-  );
-
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-function arrayBufferToBase64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach(b => {
-    binary += String.fromCharCode(b);
-  });
-  return btoa(binary);
-}
-
-function base64ToArrayBuffer(base64) {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes.buffer;
-}
+});
 
 function htmlToPlainText(html) {
   const tmp = document.createElement("div");
@@ -458,11 +387,11 @@ function htmlToMarkdown(html) {
   const root = document.createElement("div");
   root.innerHTML = html;
 
-  const convertNode = (node) => {
+  const convert = (node) => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
-    const content = Array.from(node.childNodes).map(convertNode).join("").trim();
+    const content = Array.from(node.childNodes).map(convert).join("");
     const tag = node.tagName.toLowerCase();
 
     if (tag === "strong" || tag === "b") return `**${content}**`;
@@ -471,54 +400,47 @@ function htmlToMarkdown(html) {
     if (tag === "h3") return `### ${content}\n\n`;
     if (tag === "a") return `[${content}](${node.getAttribute("href") || ""})`;
     if (tag === "li") return `- ${content}\n`;
-    if (tag === "ul") return `${Array.from(node.children).map(convertNode).join("")}\n`;
-    if (tag === "div" || tag === "p") return `${Array.from(node.childNodes).map(convertNode).join("")}\n\n`;
+    if (tag === "ul") return Array.from(node.children).map(convert).join("") + "\n";
+    if (tag === "p" || tag === "div") return content + "\n\n";
     if (tag === "br") return "\n";
 
-    return Array.from(node.childNodes).map(convertNode).join("");
+    return content;
   };
 
-  return Array.from(root.childNodes).map(convertNode).join("").replace(/\n{3,}/g, "\n\n").trim();
+  return Array.from(root.childNodes).map(convert).join("").trim();
 }
 
 function downloadFile(name, content, type) {
   const blob = new Blob([content], { type });
   const url = URL.createObjectURL(blob);
+
   const a = document.createElement("a");
   a.href = url;
   a.download = name;
   a.click();
+
   URL.revokeObjectURL(url);
 }
 
 function downloadPdfFromHtml(html, title) {
   if (!window.jspdf || !window.jspdf.jsPDF) {
-    alert("Generatore PDF non disponibile.");
+    alert("jsPDF non caricato.");
     return;
   }
 
-  const text = htmlToPlainText(html);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(12);
+
+  const text = htmlToPlainText(html);
   const lines = doc.splitTextToSize(text, 180);
+
   doc.text(lines, 15, 20);
   doc.save(`${safeFileName(title)}.pdf`);
 }
 
 function safeFileName(name) {
-  return String(name || "documento").trim().replace(/[^a-z0-9-_]+/gi, "_").replace(/^_+|_+$/g, "") || "documento";
+  return String(name || "documento")
+    .trim()
+    .replace(/[^a-z0-9-_]+/gi, "_")
+    .replace(/^_+|_+$/g, "") || "documento";
 }
-  db.collection("users").doc(user.uid).collection("documents").doc(docId)
-    .delete()
-    .then(() => {
-      alert("Documento eliminato!");
-      localStorage.removeItem("currentDocId"); // rimuove riferimento al doc eliminato
-      window.location.href = "dash.html";       // torna alla dashboard
-    })
-    .catch(err => {
-      console.error(err);
-      alert("Errore nell'eliminazione del documento.");
-    });
-});

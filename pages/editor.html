@@ -39,27 +39,31 @@
     <div id="editor" contenteditable="true" placeholder="Scrivi qui..."></div>
   </main>
 
-  <div class="modal hidden" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-    <div class="modal-content">
-      <h2 id="settings-title">Impostazioni documento</h2>
-      <label class="checkbox-row">
-        <input type="checkbox" id="encrypt-toggle">
-        Cifra il documento con password
-      </label>
-      <label for="password-input">Password</label>
-      <input type="password" id="password-input" placeholder="Inserisci una password forte" disabled>
-      <p class="warning-text">⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.</p>
-      <p class="warning-text" id="crypto-support-warning"></p>
-      <div class="modal-buttons">
-        <button id="settings-close-btn" class="secondary-btn">Chiudi</button>
-      <input type="password" id="password-input" placeholder="Inserisci una password forte">
-      <p class="warning-text">⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.</p>
-      <div class="modal-buttons">
-        <button id="delete-btn">Elimina Documento</button>
-        <button id="settings-close-btn" class="secondary-btn">Chiudi e Salva</button>
-      </div>
+<div class="modal hidden" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="modal-content">
+    <h2 id="settings-title">Impostazioni documento</h2>
+
+    <label class="checkbox-row">
+      <input type="checkbox" id="encrypt-toggle">
+      <span>Cifra il documento con password</span>
+    </label>
+
+    <label for="password-input">Password</label>
+    <input type="password" id="password-input" placeholder="Inserisci una password forte" disabled>
+
+    <p class="warning-text">
+      ⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.
+    </p>
+
+    <p class="warning-text" id="crypto-support-warning"></p>
+
+    <div class="modal-buttons">
+      <button id="delete-btn">Elimina Documento</button>
+      <button id="settings-close-btn" class="secondary-btn">Chiudi e Salva</button>
     </div>
+
   </div>
+</div>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>

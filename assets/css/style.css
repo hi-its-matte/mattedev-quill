@@ -1,3 +1,7 @@
+/* =========================
+   BASE
+========================= */
+
 body {
   font-family: Arial, sans-serif;
   background: linear-gradient(160deg, #1f1f1f, #2c2c2c);
@@ -7,31 +11,25 @@ body {
   min-height: 100vh;
 }
 
-.container, .login-container, .dash-container, .editor-container {
-  width: 90%;
-  max-width: 800px;
-  margin: 50px auto;
-  padding: 20px;
-  background-color: #656160;
-  border-radius: 10px;
-}
-
 h1, h2 {
   color: #efefef;
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  gap: 12px;
-}
+/* =========================
+   CONTAINERS
+========================= */
 
-.topbar h1 {
-  margin: 0;
-  font-size: 1.5rem;
+.container,
+.login-container,
+.dash-container,
+.editor-container {
+  width: 90%;
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 24px;
+  background-color: #2f2f2f;
+  border-radius: 16px;
+  box-shadow: 0 15px 35px rgba(0,0,0,0.35);
 }
 
 main {
@@ -39,16 +37,32 @@ main {
   margin: 25px auto;
 }
 
-input, button {
-  display: block;
+/* =========================
+   INPUT
+========================= */
+
+input {
   width: 100%;
   margin: 10px 0;
-  padding: 10px;
+  padding: 12px;
   border-radius: 10px;
   border: none;
+  background: #3a3a3a;
+  color: #fff;
 }
 
+input:focus {
+  outline: 2px solid #888;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
 button {
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
   background-color: #858482;
   color: #fff;
   cursor: pointer;
@@ -65,9 +79,23 @@ button:hover {
   background: #4e4e4e;
 }
 
-.new-doc {
-  max-width: 230px;
+.secondary-btn:hover {
+  background: #6a6a6a;
+  color: #fff;
 }
+
+#delete-btn {
+  background-color: #ff4c4c;
+  color: white;
+}
+
+#delete-btn:hover {
+  background-color: #ff2e2e;
+}
+
+/* =========================
+   DOCUMENT LIST
+========================= */
 
 .document-list {
   margin-top: 20px;
@@ -96,11 +124,9 @@ button:hover {
   font-size: 0.9rem;
 }
 
-.doc-card button {
-  width: auto;
-  padding: 9px 18px;
-  border-radius: 999px;
-}
+/* =========================
+   EDITOR
+========================= */
 
 #editor {
   margin-top: 12px;
@@ -120,17 +146,21 @@ button:hover {
 .editor-actions {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .editor-actions button {
   width: auto;
-  padding: 10px 16px;
 }
+
+/* =========================
+   MODAL
+========================= */
 
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,11 +172,12 @@ button:hover {
 }
 
 .modal-content {
-  width: min(440px, 100%);
+  width: min(450px, 100%);
   background: #242424;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 16px;
-  padding: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
 }
 
 .checkbox-row {
@@ -156,20 +187,26 @@ button:hover {
   margin: 10px 0;
 }
 
-.checkbox-row input {
-  width: auto;
-  margin: 0;
-}
-
 .warning-text {
   color: #ffbd6f;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  margin-top: 10px;
 }
 
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
 }
+
+.modal-buttons button {
+  min-width: 120px;
+}
+
+/* =========================
+   PROFILE
+========================= */
 
 .profile-island {
   position: relative;
@@ -189,7 +226,6 @@ button:hover {
   height: 34px;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 .profile-menu {
@@ -220,35 +256,9 @@ button:hover {
   display: block;
 }
 
-.logout-inline {
-  width: auto;
-  min-width: 100px;
-}
-
-.editor-actions.wrap {
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.format-btn,
-#download-format {
-  width: auto;
-  margin: 4px 0;
-  padding: 10px 14px;
-}
-
-#download-format {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: #3b3b3b;
-  color: #fff;
-  border-radius: 10px;
-}
-
-.autosave-badge {
-  font-size: 0.9rem;
-  color: #c9c9c9;
-  margin: 8px 0 0;
-}
+/* =========================
+   FOOTER
+========================= */
 
 .page-footer {
   margin: 30px auto;
@@ -269,14 +279,4 @@ button:hover {
 input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
-#delete-btn {
-  margin-left: 0.5rem;
-  background-color: #ff4c4c;
-  border: none;
-  padding: 0.5rem 1rem;
-  color: white;
-  cursor: pointer;
-  border-radius: 4px;
-  font-weight: bold;
 }
