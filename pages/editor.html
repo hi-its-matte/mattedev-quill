@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MatteDev Quill - Editor</title>
   <link rel="stylesheet" href="../assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
 </head>
 <body>
   <header class="topbar">
@@ -13,20 +14,28 @@
   </header>
 
   <main>
-    <div class="toolbar-island" aria-label="Strumenti editor">
-      <button id="save-btn" class="format-btn" title="Salva">💾 Salva</button>
-      <button id="settings-btn" class="secondary-btn format-btn" title="Impostazioni">⚙️</button>
+    <div class="editor-actions wrap">
+      <button id="save-btn">Salva Documento</button>
+      <button id="settings-btn" class="secondary-btn">Impostazioni</button>
       <button data-cmd="h1" class="format-btn">H1</button>
       <button data-cmd="h2" class="format-btn">H2</button>
       <button data-cmd="h3" class="format-btn">H3</button>
-      <button data-cmd="bold" class="format-btn" title="Grassetto">𝐁</button>
-      <button data-cmd="italic" class="format-btn" title="Corsivo">𝑰</button>
-      <button data-cmd="unorderedList" class="format-btn" title="Elenco">• Lista</button>
-      <button id="insert-link-btn" class="format-btn" title="Inserisci link">🔗 Link</button>
-      <button id="download-btn" class="format-btn" title="Download">⬇️ Download</button>
+      <button data-cmd="bold" class="format-btn">Grassetto</button>
+      <button data-cmd="unorderedList" class="format-btn">Elenco</button>
+      <button id="insert-link-btn" class="format-btn">Inserisci Link</button>
+      <select id="download-format" aria-label="Formato download">
+        <option value="txt">Download .txt</option>
+        <option value="md">Download .md</option>
+        <option value="pdf">Download .pdf</option>
+      </select>
+      <button id="download-btn" class="format-btn">Download</button>
     </div>
 
     <div class="autosave-badge" id="autosave-badge">Auto-save in attesa…</div>
+    <div class="editor-actions">
+      <button id="save-btn">Salva Documento</button>
+      <button id="settings-btn" class="secondary-btn">Impostazioni</button>
+    </div>
     <div id="editor" contenteditable="true" placeholder="Scrivi qui..."></div>
   </main>
 
@@ -43,6 +52,11 @@
       <p class="warning-text" id="crypto-support-warning"></p>
       <div class="modal-buttons">
         <button id="settings-close-btn" class="secondary-btn">Chiudi</button>
+      <input type="password" id="password-input" placeholder="Inserisci una password forte">
+      <p class="warning-text">⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.</p>
+      <div class="modal-buttons">
+        <button id="delete-btn">Elimina Documento</button>
+        <button id="settings-close-btn" class="secondary-btn">Chiudi e Salva</button>
       </div>
     </div>
   </div>
