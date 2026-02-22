@@ -224,6 +224,52 @@ button:hover {
   width: auto;
   min-width: 100px;
 }
+
+.editor-actions.wrap {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.format-btn,
+#download-format {
+  width: auto;
+  margin: 4px 0;
+  padding: 10px 14px;
+}
+
+#download-format {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #3b3b3b;
+  color: #fff;
+  border-radius: 10px;
+}
+
+.autosave-badge {
+  font-size: 0.9rem;
+  color: #c9c9c9;
+  margin: 8px 0 0;
+}
+
+.page-footer {
+  margin: 30px auto;
+  width: min(1100px, 92%);
+  display: flex;
+  gap: 16px;
+}
+
+.page-footer a {
+  color: #d2d2d2;
+  text-decoration: none;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+}
+
+input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 #delete-btn {
   margin-left: 0.5rem;
   background-color: #ff4c4c;
