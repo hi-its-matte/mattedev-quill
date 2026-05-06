@@ -420,3 +420,90 @@ function safeFileName(name) {
     .replace(/[^a-z0-9-_]+/gi, "_")
     .replace(/^_+|_+$/g, "") || "documento";
 }
+/* =========================
+   FIRESTORE LOGIC
+========================= */
+
+// Carica o crea un documento
+async function loadDocument(uid) {
+    const urlParams = new URLSearchParams(window.location.search);
+    let docId = urlParams.get('docId');
+
+    // SE l'URL chiede un nuovo documento (?action=new)
+    if (urlParams.get('action') === 'new') {
+        const newDoc = await db.collection("users").doc(uid).collection("documents").add({
+            title: "Nuovo Documento Quill",
+            content: "",
+            isEncrypted: false,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        // Ricarica la pagina con il nuovo ID per pulire l'URL
+        window.location.href = `editor.html?docId=${newDoc.id}`;
+        return;
+    }
+
+    if (!docId) {
+        docId = localStorage.getItem("currentDocId");
+    }
+
+    if (!docId) {
+        window.location.href = "dash.html";
+        return;
+    }
+
+    localStorage.setItem("currentDocId", docId);
+
+    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
+    const snap = await docRef.get();
+
+    if (!snap.exists) {
+        alert("Documento non trovato.");
+        window.location.href = "dash.html";
+        return;
+    }
+
+    const data = snap.data();
+    currentDocTitle = data.title || "documento";
+    document.title = `Quill - ${currentDocTitle}`;
+
+    if (!data.isEncrypted) {
+        editor.innerHTML = data.content || "";
+        encryptionValidated = true;
+    } else {
+        handleEncryptedLoad(data);
+    }
+}
+
+/* =========================
+   DOWNLOAD .QUILL (Puntatore locale)
+========================= */
+
+// Funzione da collegare a un pulsante "Scarica collegamento locale"
+function downloadQuillPointer() {
+    const docId = localStorage.getItem("currentDocId");
+    if (!docId) return;
+
+    const pointer = JSON.stringify({ docId: docId });
+    const blob = new Blob([pointer], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safeFileName(currentDocTitle)}.quill`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Aggiungiamo l'evento al downloadBtn esistente o creane uno nuovo
+downloadBtn.addEventListener("click", () => {
+    const format = downloadFormat.value;
+    if(format === "quill") {
+        downloadQuillPointer();
+    } else {
+        downloadFile(
+            `${safeFileName(currentDocTitle)}.md`,
+            htmlToMarkdown(editor.innerHTML),
+            "text/markdown"
+        );
+    }
+});

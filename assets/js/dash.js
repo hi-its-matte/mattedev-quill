@@ -1,3 +1,5 @@
+document.addEventListener("DOMContentLoaded", () => {
+
 const firebaseConfig = {
   apiKey: "AIzaSyC7Tbqt5FzJK8Z_USkCMWxXiHZp8uRN26A",
   authDomain: "mattedev-account.firebaseapp.com",
@@ -110,3 +112,10 @@ document.addEventListener("click", event => {
   setTimeout(() => {
     loading.classList.add('hidden');
   }, 1000); // 3000ms = 3 secondi
+
+});
+// Opzione B: Rendila globale
+window.openDoc = function(docId) {
+  localStorage.setItem("currentDocId", docId);
+  window.location.href = "editor.html";
+};
