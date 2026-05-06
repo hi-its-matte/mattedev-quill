@@ -19,26 +19,26 @@ const db = firebase.firestore();
    DOM ELEMENTS
 ========================= */
 
-const editor = document.getElementById("editor");
-const saveBtn = document.getElementById("save-btn");
-const backBtn = document.getElementById("back-btn");
-const deleteBtn = document.getElementById("delete-btn");
+const editor          = document.getElementById("editor");
+const saveBtn         = document.getElementById("save-btn");
+const backBtn         = document.getElementById("back-btn");
+const deleteBtn       = document.getElementById("delete-btn");
 
-const settingsBtn = document.getElementById("settings-btn");
-const settingsModal = document.getElementById("settings-modal");
-const settingsCloseBtn = document.getElementById("settings-close-btn");
+const settingsBtn     = document.getElementById("settings-btn");
+const settingsModal   = document.getElementById("settings-modal");
+const settingsCloseBtn= document.getElementById("settings-close-btn");
 
-const encryptToggle = document.getElementById("encrypt-toggle");
-const passwordInput = document.getElementById("password-input");
-const cryptoWarning = document.getElementById("crypto-support-warning");
+const encryptToggle   = document.getElementById("encrypt-toggle");
+const passwordInput   = document.getElementById("password-input");
+const cryptoWarning   = document.getElementById("crypto-support-warning");
 
-const autosaveBadge = document.getElementById("autosave-badge");
+const autosaveBadge   = document.getElementById("autosave-badge");
 
-const linkBtn = document.getElementById("insert-link-btn");
-const formatButtons = document.querySelectorAll(".format-btn[data-cmd]");
+const linkBtn         = document.getElementById("insert-link-btn");
+const formatButtons   = document.querySelectorAll(".format-btn[data-cmd]");
 
-const downloadBtn = document.getElementById("download-btn");
-const downloadFormat = document.getElementById("download-format");
+const downloadBtn     = document.getElementById("download-btn");
+const downloadFormat  = document.getElementById("download-format");
 
 /* =========================
    GLOBAL STATE
@@ -51,8 +51,8 @@ const hasCryptoSupport = Boolean(
   globalThis.TextDecoder
 );
 
-let autosaveTimer = null;
-let currentDocTitle = "documento";
+let autosaveTimer       = null;
+let currentDocTitle     = "documento";
 let encryptionValidated = false;
 
 /* =========================
@@ -62,23 +62,24 @@ let encryptionValidated = false;
 auth.onAuthStateChanged(async user => {
   if (!user) {
     window.location.href = "login.html";
-  } else {
-    const urlParams = new URLSearchParams(window.location.search);
-    const docId = urlParams.get('docId');
-    const isNew = urlParams.get('action') === 'new';
-
-    // Se è un nuovo documento (da Web o Desktop), attendiamo la creazione prima di caricare
-    if (isNew && docId) {
-      autosaveBadge.textContent = "Inizializzazione...";
-      await handleNewDocumentFromDesktop(user.uid, docId);
-      
-      // Puliamo l'URL per evitare ricreazioni al refresh
-      const newUrl = window.location.pathname + `?docId=${docId}`;
-      window.history.replaceState({}, document.title, newUrl);
-    }
-
-    loadDocument(user.uid);
+    return;
   }
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const docId     = urlParams.get("docId");
+  const isNew     = urlParams.get("action") === "new";
+
+  // Nuovo documento creato da Desktop (Python launcher)
+  if (isNew && docId) {
+    autosaveBadge.textContent = "Inizializzazione...";
+    await handleNewDocumentFromDesktop(user.uid, docId);
+
+    // Pulisci l'URL per evitare ricreazioni al refresh
+    const cleanUrl = `${window.location.pathname}?docId=${docId}`;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+
+  loadDocument(user.uid);
 });
 
 /* =========================
@@ -102,17 +103,15 @@ encryptToggle.addEventListener("change", () => {
   passwordInput.disabled = !enabled;
 
   if (enabled && !hasCryptoSupport) {
-    encryptToggle.checked = false;
-    passwordInput.disabled = true;
-    cryptoWarning.textContent =
-      "Cifratura non disponibile. Usa HTTPS o browser aggiornato.";
+    encryptToggle.checked    = false;
+    passwordInput.disabled   = true;
+    cryptoWarning.textContent = "Cifratura non disponibile. Usa HTTPS o browser aggiornato.";
     alert("Web Crypto non supportato.");
   }
 });
 
 if (!hasCryptoSupport) {
-  cryptoWarning.textContent =
-    "Questo ambiente non supporta Web Crypto. Cifratura disabilitata.";
+  cryptoWarning.textContent = "Questo ambiente non supporta Web Crypto. Cifratura disabilitata.";
 }
 
 formatButtons.forEach(btn => {
@@ -131,6 +130,7 @@ formatButtons.forEach(btn => {
 
     if (cmd === "bold") {
       document.execCommand("bold");
+      return;
     }
   });
 });
@@ -143,7 +143,7 @@ linkBtn.addEventListener("click", () => {
 
 editor.addEventListener("input", () => {
   autosaveBadge.textContent = "Modifiche non salvate";
-  if (autosaveTimer) clearTimeout(autosaveTimer);
+  clearTimeout(autosaveTimer);
   autosaveTimer = setTimeout(() => saveDocument(true), 1500);
 });
 
@@ -154,7 +154,7 @@ deleteBtn.addEventListener("click", async () => {
   if (!confirmDelete) return;
 
   const docId = localStorage.getItem("currentDocId");
-  const user = auth.currentUser;
+  const user  = auth.currentUser;
   if (!docId || !user) return;
 
   try {
@@ -168,8 +168,22 @@ deleteBtn.addEventListener("click", async () => {
     alert("Documento eliminato.");
     window.location.href = "dash.html";
   } catch (err) {
-    console.error(err);
+    console.error("Errore eliminazione:", err);
     alert("Errore durante eliminazione.");
+  }
+});
+
+downloadBtn.addEventListener("click", () => {
+  const format = downloadFormat.value;
+
+  if (format === "quill") {
+    downloadQuillPointer();
+  } else {
+    downloadFile(
+      `${safeFileName(currentDocTitle)}.md`,
+      htmlToMarkdown(editor.innerHTML),
+      "text/markdown"
+    );
   }
 });
 
@@ -177,106 +191,117 @@ deleteBtn.addEventListener("click", async () => {
    FIRESTORE LOGIC
 ========================= */
 
+/**
+ * Crea il documento su Firestore se non esiste ancora.
+ * Usato quando il launcher Python apre un file .quill nuovo.
+ * Il docId è l'UUID4 generato da Python — Firestore lo accetta come chiave custom.
+ */
 async function handleNewDocumentFromDesktop(uid, docId) {
-    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
-    const snap = await docRef.get();
+  const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
+  const snap   = await docRef.get();
 
-    if (!snap.exists) {
-        await docRef.set({
-            title: "Nuovo Documento da Desktop",
-            content: "",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            isEncrypted: false
-        });
-    }
+  if (!snap.exists) {
+    await docRef.set({
+      title      : "Nuovo Documento",
+      content    : "",
+      isEncrypted: false,
+      createdAt  : firebase.firestore.FieldValue.serverTimestamp()
+    });
+    console.log("[Quill] Documento creato con docId:", docId);
+  } else {
+    console.log("[Quill] Documento già esistente con docId:", docId);
+  }
 }
 
 async function loadDocument(uid) {
-    const urlParams = new URLSearchParams(window.location.search);
-    let docId = urlParams.get('docId') || localStorage.getItem("currentDocId");
+  const urlParams = new URLSearchParams(window.location.search);
+  const docId     = urlParams.get("docId") || localStorage.getItem("currentDocId");
 
-    if (!docId) {
-        window.location.href = "dash.html";
-        return;
-    }
+  if (!docId) {
+    window.location.href = "dash.html";
+    return;
+  }
 
-    localStorage.setItem("currentDocId", docId);
+  localStorage.setItem("currentDocId", docId);
 
-    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
-    const snap = await docRef.get();
+  const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
+  let snap     = await docRef.get();
+
+  if (!snap.exists) {
+    // Secondo tentativo dopo 1s per latenza rete (raro ma possibile)
+    await new Promise(r => setTimeout(r, 1000));
+    snap = await docRef.get();
 
     if (!snap.exists) {
-        // Secondo tentativo rapido in caso di latenza del database
-        setTimeout(async () => {
-            const retrySnap = await docRef.get();
-            if (!retrySnap.exists) {
-                alert("Documento non trovato.");
-                window.location.href = "dash.html";
-            } else {
-                renderDocument(retrySnap.data());
-            }
-        }, 1000);
-        return;
+      alert("Documento non trovato.");
+      window.location.href = "dash.html";
+      return;
     }
+  }
 
-    renderDocument(snap.data());
+  renderDocument(snap.data());
 }
 
 function renderDocument(data) {
-    currentDocTitle = data.title || "documento";
-    document.title = `Quill - ${currentDocTitle}`;
-    encryptionValidated = false;
+  currentDocTitle = data.title || "documento";
+  document.title  = `Quill - ${currentDocTitle}`;
+  encryptionValidated = false;
 
-    if (!data.isEncrypted) {
-        editor.innerHTML = data.content || "";
-        encryptionValidated = true;
-    } else {
-        handleEncryptedLoad(data);
-    }
+  if (!data.isEncrypted) {
+    editor.innerHTML    = data.content || "";
+    encryptionValidated = true;
+    autosaveBadge.textContent = "Documento caricato";
+  } else {
+    handleEncryptedLoad(data);
+  }
 }
 
 async function handleEncryptedLoad(data) {
-    if (!hasCryptoSupport) {
-        alert("Documento cifrato ma Web Crypto non disponibile.");
-        return;
-    }
+  if (!hasCryptoSupport) {
+    alert("Documento cifrato ma Web Crypto non disponibile.");
+    return;
+  }
 
-    const password = prompt("Documento cifrato. Inserisci password:");
-    if (!password) return;
+  const password = prompt("Documento cifrato. Inserisci password:");
+  if (!password) return;
 
-    try {
-        const text = await decryptText(data.content, password, data.salt, data.iv);
-        editor.innerHTML = text;
-        passwordInput.value = password;
-        encryptToggle.checked = true;
-        passwordInput.disabled = false;
-        encryptionValidated = true;
-    } catch {
-        alert("Password errata o dati corrotti.");
-    }
+  try {
+    const text = await decryptText(data.content, password, data.salt, data.iv);
+    editor.innerHTML      = text;
+    passwordInput.value   = password;
+    encryptToggle.checked = true;
+    passwordInput.disabled = false;
+    encryptionValidated   = true;
+    autosaveBadge.textContent = "Documento caricato";
+  } catch {
+    alert("Password errata o dati corrotti.");
+  }
 }
 
 async function saveDocument(isAutoSave) {
   const docId = localStorage.getItem("currentDocId");
-  const user = auth.currentUser;
+  const user  = auth.currentUser;
   if (!docId || !user) return;
 
   try {
     const payload = await buildPayload(editor.innerHTML);
+
     await db.collection("users")
       .doc(user.uid)
       .collection("documents")
       .doc(docId)
       .update(payload);
 
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     autosaveBadge.textContent = isAutoSave
-      ? `Auto-save ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
+      ? `Auto-save ${time}`
       : "Documento salvato";
 
     if (!isAutoSave) alert("Documento salvato.");
   } catch (err) {
-    console.error(err);
+    console.error("Errore salvataggio:", err);
     autosaveBadge.textContent = "Salvataggio fallito";
+    if (!isAutoSave) alert(`Errore salvataggio: ${err.message}`);
   }
 }
 
@@ -285,23 +310,26 @@ async function buildPayload(content) {
     return { content, isEncrypted: false, salt: null, iv: null };
   }
 
-  if (!hasCryptoSupport)
+  if (!hasCryptoSupport) {
     throw new Error("Web Crypto non disponibile.");
+  }
 
   const password = passwordInput.value;
-  if (!password)
-    throw new Error("Inserisci password per cifrare.");
+  if (!password) {
+    throw new Error("Inserisci una password per cifrare.");
+  }
 
-  if (!encryptionValidated)
-    throw new Error("Password non confermata, autosave bloccato.");
+  if (!encryptionValidated) {
+    throw new Error("Password non confermata — auto-save bloccato per sicurezza.");
+  }
 
   const encrypted = await encryptText(content, password);
 
   return {
-    content: encrypted.cipherText,
+    content    : encrypted.cipherText,
     isEncrypted: true,
-    salt: encrypted.salt,
-    iv: encrypted.iv
+    salt       : encrypted.salt,
+    iv         : encrypted.iv
   };
 }
 
@@ -310,11 +338,10 @@ async function buildPayload(content) {
 ========================= */
 
 async function encryptText(text, password) {
-  const enc = new TextEncoder();
+  const enc  = new TextEncoder();
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-
-  const key = await deriveKey(password, salt);
+  const iv   = crypto.getRandomValues(new Uint8Array(12));
+  const key  = await deriveKey(password, salt);
 
   const encrypted = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
@@ -324,19 +351,17 @@ async function encryptText(text, password) {
 
   return {
     cipherText: arrayBufferToBase64(encrypted),
-    salt: arrayBufferToBase64(salt.buffer),
-    iv: arrayBufferToBase64(iv.buffer)
+    salt      : arrayBufferToBase64(salt.buffer),
+    iv        : arrayBufferToBase64(iv.buffer)
   };
 }
 
 async function decryptText(cipherText, password, saltB64, ivB64) {
-  const dec = new TextDecoder();
-
+  const dec  = new TextDecoder();
   const salt = new Uint8Array(base64ToArrayBuffer(saltB64));
-  const iv = new Uint8Array(base64ToArrayBuffer(ivB64));
+  const iv   = new Uint8Array(base64ToArrayBuffer(ivB64));
   const data = base64ToArrayBuffer(cipherText);
-
-  const key = await deriveKey(password, salt);
+  const key  = await deriveKey(password, salt);
 
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
@@ -359,12 +384,7 @@ async function deriveKey(password, salt) {
   );
 
   return crypto.subtle.deriveKey(
-    {
-      name: "PBKDF2",
-      salt,
-      iterations: 100000,
-      hash: "SHA-256"
-    },
+    { name: "PBKDF2", salt, iterations: 100_000, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
@@ -378,17 +398,23 @@ async function deriveKey(password, salt) {
 
 function arrayBufferToBase64(buffer) {
   const bytes = new Uint8Array(buffer);
-  let binary = "";
-  bytes.forEach(b => binary += String.fromCharCode(b));
+  let binary  = "";
+  bytes.forEach(b => (binary += String.fromCharCode(b)));
   return btoa(binary);
 }
 
 function base64ToArrayBuffer(base64) {
   const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++)
-    bytes[i] = binary.charCodeAt(i);
+  const bytes  = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes.buffer;
+}
+
+function safeFileName(name) {
+  return String(name || "documento")
+    .trim()
+    .replace(/[^a-z0-9\-_]+/gi, "_")
+    .replace(/^_+|_+$/g, "") || "documento";
 }
 
 /* =========================
@@ -396,48 +422,45 @@ function base64ToArrayBuffer(base64) {
 ========================= */
 
 function downloadQuillPointer() {
-    const docId = localStorage.getItem("currentDocId");
-    if (!docId) return;
+  const docId = localStorage.getItem("currentDocId");
+  if (!docId) {
+    alert("Nessun documento aperto.");
+    return;
+  }
 
-    const pointer = JSON.stringify({ docId: docId });
-    downloadFile(`${safeFileName(currentDocTitle)}.quill`, pointer, "application/json");
+  const pointer = JSON.stringify({ docId });
+  downloadFile(`${safeFileName(currentDocTitle)}.quill`, pointer, "application/json");
 }
-
-downloadBtn.addEventListener("click", () => {
-    const format = downloadFormat.value;
-    if(format === "quill") {
-        downloadQuillPointer();
-    } else {
-        downloadFile(
-            `${safeFileName(currentDocTitle)}.md`,
-            htmlToMarkdown(editor.innerHTML),
-            "text/markdown"
-        );
-    }
-});
 
 function htmlToMarkdown(html) {
   const root = document.createElement("div");
   root.innerHTML = html;
 
-  const convert = (node) => {
+  const convert = node => {
     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
     if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
     const content = Array.from(node.childNodes).map(convert).join("");
-    const tag = node.tagName.toLowerCase();
+    const tag     = node.tagName.toLowerCase();
 
-    if (tag === "strong" || tag === "b") return `**${content}**`;
-    if (tag === "h1") return `# ${content}\n\n`;
-    if (tag === "h2") return `## ${content}\n\n`;
-    if (tag === "h3") return `### ${content}\n\n`;
-    if (tag === "a") return `[${content}](${node.getAttribute("href") || ""})`;
-    if (tag === "li") return `- ${content}\n`;
-    if (tag === "ul") return Array.from(node.children).map(convert).join("") + "\n";
-    if (tag === "p" || tag === "div") return content + "\n\n";
-    if (tag === "br") return "\n";
-
-    return content;
+    switch (tag) {
+      case "strong":
+      case "b":    return `**${content}**`;
+      case "em":
+      case "i":    return `_${content}_`;
+      case "h1":   return `# ${content}\n\n`;
+      case "h2":   return `## ${content}\n\n`;
+      case "h3":   return `### ${content}\n\n`;
+      case "a":    return `[${content}](${node.getAttribute("href") || ""})`;
+      case "li":   return `- ${content}\n`;
+      case "ul":   return Array.from(node.children).map(convert).join("") + "\n";
+      case "ol":   return Array.from(node.children).map((child, i) =>
+                     `${i + 1}. ${convert(child)}\n`).join("") + "\n";
+      case "p":
+      case "div":  return content + "\n\n";
+      case "br":   return "\n";
+      default:     return content;
+    }
   };
 
   return Array.from(root.childNodes).map(convert).join("").trim();
@@ -445,19 +468,12 @@ function htmlToMarkdown(html) {
 
 function downloadFile(name, content, type) {
   const blob = new Blob([content], { type });
-  const url = URL.createObjectURL(blob);
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
 
-  const a = document.createElement("a");
-  a.href = url;
+  a.href     = url;
   a.download = name;
   a.click();
 
   URL.revokeObjectURL(url);
-}
-
-function safeFileName(name) {
-  return String(name || "documento")
-    .trim()
-    .replace(/[^a-z0-9-_]+/gi, "_")
-    .replace(/^_+|_+$/g, "") || "documento";
 }
