@@ -56,13 +56,27 @@ let currentDocTitle = "documento";
 let encryptionValidated = false;
 
 /* =========================
-   AUTH STATE
+   AUTH STATE & INITIALIZATION
 ========================= */
 
-auth.onAuthStateChanged(user => {
+auth.onAuthStateChanged(async user => {
   if (!user) {
     window.location.href = "login.html";
   } else {
+    const urlParams = new URLSearchParams(window.location.search);
+    const docId = urlParams.get('docId');
+    const isNew = urlParams.get('action') === 'new';
+
+    // Se è un nuovo documento (da Web o Desktop), attendiamo la creazione prima di caricare
+    if (isNew && docId) {
+      autosaveBadge.textContent = "Inizializzazione...";
+      await handleNewDocumentFromDesktop(user.uid, docId);
+      
+      // Puliamo l'URL per evitare ricreazioni al refresh
+      const newUrl = window.location.pathname + `?docId=${docId}`;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+
     loadDocument(user.uid);
   }
 });
@@ -130,12 +144,10 @@ linkBtn.addEventListener("click", () => {
 editor.addEventListener("input", () => {
   autosaveBadge.textContent = "Modifiche non salvate";
   if (autosaveTimer) clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => saveDocument(true), 1000);
+  autosaveTimer = setTimeout(() => saveDocument(true), 1500);
 });
 
 saveBtn.addEventListener("click", () => saveDocument(false));
-
-setInterval(() => saveDocument(true), 3000);
 
 deleteBtn.addEventListener("click", async () => {
   const confirmDelete = confirm("Eliminare definitivamente il documento?");
@@ -165,59 +177,83 @@ deleteBtn.addEventListener("click", async () => {
    FIRESTORE LOGIC
 ========================= */
 
+async function handleNewDocumentFromDesktop(uid, docId) {
+    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
+    const snap = await docRef.get();
+
+    if (!snap.exists) {
+        await docRef.set({
+            title: "Nuovo Documento da Desktop",
+            content: "",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            isEncrypted: false
+        });
+    }
+}
+
 async function loadDocument(uid) {
-  const docId = localStorage.getItem("currentDocId");
-  if (!docId) {
-    window.location.href = "dash.html";
-    return;
-  }
+    const urlParams = new URLSearchParams(window.location.search);
+    let docId = urlParams.get('docId') || localStorage.getItem("currentDocId");
 
-  const docRef = db.collection("users")
-    .doc(uid)
-    .collection("documents")
-    .doc(docId);
+    if (!docId) {
+        window.location.href = "dash.html";
+        return;
+    }
 
-  const snap = await docRef.get();
+    localStorage.setItem("currentDocId", docId);
 
-  if (!snap.exists) {
-    window.location.href = "dash.html";
-    return;
-  }
+    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
+    const snap = await docRef.get();
 
-  const data = snap.data();
-  currentDocTitle = data.title || "documento";
+    if (!snap.exists) {
+        // Secondo tentativo rapido in caso di latenza del database
+        setTimeout(async () => {
+            const retrySnap = await docRef.get();
+            if (!retrySnap.exists) {
+                alert("Documento non trovato.");
+                window.location.href = "dash.html";
+            } else {
+                renderDocument(retrySnap.data());
+            }
+        }, 1000);
+        return;
+    }
 
-  encryptionValidated = false;
+    renderDocument(snap.data());
+}
 
-  if (!data.isEncrypted) {
-    editor.innerHTML = data.content || "";
-    encryptionValidated = true; // non cifrato, autosave OK
-    return;
-  }
+function renderDocument(data) {
+    currentDocTitle = data.title || "documento";
+    document.title = `Quill - ${currentDocTitle}`;
+    encryptionValidated = false;
 
-  if (!hasCryptoSupport) {
-    alert("Documento cifrato ma Web Crypto non disponibile.");
-    return;
-  }
+    if (!data.isEncrypted) {
+        editor.innerHTML = data.content || "";
+        encryptionValidated = true;
+    } else {
+        handleEncryptedLoad(data);
+    }
+}
 
-  const password = prompt("Documento cifrato. Inserisci password:");
-  if (!password) return;
+async function handleEncryptedLoad(data) {
+    if (!hasCryptoSupport) {
+        alert("Documento cifrato ma Web Crypto non disponibile.");
+        return;
+    }
 
-  try {
-    const text = await decryptText(
-      data.content,
-      password,
-      data.salt,
-      data.iv
-    );
-    editor.innerHTML = text;
-    passwordInput.value = password;
-    encryptToggle.checked = true;
-    passwordInput.disabled = false;
-    encryptionValidated = true; // password confermata
-  } catch {
-    alert("Password errata o dati corrotti.");
-  }
+    const password = prompt("Documento cifrato. Inserisci password:");
+    if (!password) return;
+
+    try {
+        const text = await decryptText(data.content, password, data.salt, data.iv);
+        editor.innerHTML = text;
+        passwordInput.value = password;
+        encryptToggle.checked = true;
+        passwordInput.disabled = false;
+        encryptionValidated = true;
+    } catch {
+        alert("Password errata o dati corrotti.");
+    }
 }
 
 async function saveDocument(isAutoSave) {
@@ -234,15 +270,13 @@ async function saveDocument(isAutoSave) {
       .update(payload);
 
     autosaveBadge.textContent = isAutoSave
-      ? `Auto-save ${new Date().toLocaleTimeString()}`
+      ? `Auto-save ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`
       : "Documento salvato";
 
     if (!isAutoSave) alert("Documento salvato.");
   } catch (err) {
     console.error(err);
     autosaveBadge.textContent = "Salvataggio fallito";
-    if (!isAutoSave) return; // blocca l’autosave se errore
-    // alert solo per salvataggio manuale
   }
 }
 
@@ -361,17 +395,26 @@ function base64ToArrayBuffer(base64) {
    DOWNLOAD SYSTEM
 ========================= */
 
+function downloadQuillPointer() {
+    const docId = localStorage.getItem("currentDocId");
+    if (!docId) return;
+
+    const pointer = JSON.stringify({ docId: docId });
+    downloadFile(`${safeFileName(currentDocTitle)}.quill`, pointer, "application/json");
+}
+
 downloadBtn.addEventListener("click", () => {
-  const format = downloadFormat.value;
-
-
-    downloadFile(
-      `${safeFileName(currentDocTitle)}.md`,
-      htmlToMarkdown(editor.innerHTML),
-      "text/markdown"
-    );
+    const format = downloadFormat.value;
+    if(format === "quill") {
+        downloadQuillPointer();
+    } else {
+        downloadFile(
+            `${safeFileName(currentDocTitle)}.md`,
+            htmlToMarkdown(editor.innerHTML),
+            "text/markdown"
+        );
+    }
 });
-
 
 function htmlToMarkdown(html) {
   const root = document.createElement("div");
@@ -412,112 +455,9 @@ function downloadFile(name, content, type) {
   URL.revokeObjectURL(url);
 }
 
-
-
 function safeFileName(name) {
   return String(name || "documento")
     .trim()
     .replace(/[^a-z0-9-_]+/gi, "_")
     .replace(/^_+|_+$/g, "") || "documento";
-}
-/* =========================
-   FIRESTORE LOGIC
-========================= */
-
-// Carica o crea un documento
-async function loadDocument(uid) {
-    const urlParams = new URLSearchParams(window.location.search);
-    let docId = urlParams.get('docId');
-
-    // SE l'URL chiede un nuovo documento (?action=new)
-    if (urlParams.get('action') === 'new') {
-        const newDoc = await db.collection("users").doc(uid).collection("documents").add({
-            title: "Nuovo Documento Quill",
-            content: "",
-            isEncrypted: false,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        // Ricarica la pagina con il nuovo ID per pulire l'URL
-        window.location.href = `editor.html?docId=${newDoc.id}`;
-        return;
-    }
-
-    if (!docId) {
-        docId = localStorage.getItem("currentDocId");
-    }
-
-    if (!docId) {
-        window.location.href = "dash.html";
-        return;
-    }
-
-    localStorage.setItem("currentDocId", docId);
-
-    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
-    const snap = await docRef.get();
-
-    if (!snap.exists) {
-        alert("Documento non trovato.");
-        window.location.href = "dash.html";
-        return;
-    }
-
-    const data = snap.data();
-    currentDocTitle = data.title || "documento";
-    document.title = `Quill - ${currentDocTitle}`;
-
-    if (!data.isEncrypted) {
-        editor.innerHTML = data.content || "";
-        encryptionValidated = true;
-    } else {
-        handleEncryptedLoad(data);
-    }
-}
-
-/* =========================
-   DOWNLOAD .QUILL (Puntatore locale)
-========================= */
-
-// Funzione da collegare a un pulsante "Scarica collegamento locale"
-function downloadQuillPointer() {
-    const docId = localStorage.getItem("currentDocId");
-    if (!docId) return;
-
-    const pointer = JSON.stringify({ docId: docId });
-    const blob = new Blob([pointer], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${safeFileName(currentDocTitle)}.quill`;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-// Aggiungiamo l'evento al downloadBtn esistente o creane uno nuovo
-downloadBtn.addEventListener("click", () => {
-    const format = downloadFormat.value;
-    if(format === "quill") {
-        downloadQuillPointer();
-    } else {
-        downloadFile(
-            `${safeFileName(currentDocTitle)}.md`,
-            htmlToMarkdown(editor.innerHTML),
-            "text/markdown"
-        );
-    }
-});
-async function handleNewDocumentFromDesktop(uid, docId) {
-    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
-    const snap = await docRef.get();
-
-    if (!snap.exists) {
-        // Il documento è stato 'prenotato' da Python, ora lo inizializziamo per l'utente
-        await docRef.set({
-            title: "Nuovo Documento da Desktop",
-            content: "",
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-            isEncrypted: false
-        });
-    }
 }
