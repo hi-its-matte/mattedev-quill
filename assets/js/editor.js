@@ -507,3 +507,17 @@ downloadBtn.addEventListener("click", () => {
         );
     }
 });
+async function handleNewDocumentFromDesktop(uid, docId) {
+    const docRef = db.collection("users").doc(uid).collection("documents").doc(docId);
+    const snap = await docRef.get();
+
+    if (!snap.exists) {
+        // Il documento è stato 'prenotato' da Python, ora lo inizializziamo per l'utente
+        await docRef.set({
+            title: "Nuovo Documento da Desktop",
+            content: "",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            isEncrypted: false
+        });
+    }
+}
