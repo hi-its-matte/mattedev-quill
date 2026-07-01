@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head><title>Accesso in corso...</title></head>
+<body>
+
+<p>Accesso in corso, attendi...</p>
+
+<script type="module">
+import { auth } from "./firebase.js";
+import { signInWithCustomToken } from "firebase/auth";
+
+const EXCHANGE_URL = "https://authalias.mattedev.com/exchangeToken";
+
+const params = new URLSearchParams(window.location.search);
+const idToken = params.get("token");
+const redirect = params.get("redirect") || window.location.origin;
+
+async function run() {
+  if (!idToken) {
+    window.location.href = "https://auth.mattedev.com/login.html";
+    return;
+  }
+
+  try {
+    const res = await fetch(EXCHANGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idToken }),
+    });
+
+    if (!res.ok) throw new Error("Scambio token fallito");
+
+    const { customToken } = await res.json();
+
+    await signInWithCustomToken(auth, customToken);
+
+    window.location.href = redirect;
+
+  } catch (e) {
+    console.error(e);
+    window.location.href = "https://auth.mattedev.com/login.html";
+  }
+}
+
+run();
+</script>
+
+</body>
+</html>
