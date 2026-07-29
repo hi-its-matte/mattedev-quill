@@ -9,52 +9,105 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Editor</h1>
+    <input type="text" id="doc-title-input" class="doc-title-input" placeholder="Nuovo Documento" autocomplete="off">
+    <button id="theme-toggle" class="icon-btn" title="Cambia Tema (Chiaro/Scuro)"><i data-lucide="moon"></i></button>
     <button id="back-btn">← Dashboard</button>
   </header>
 
   <main>
-    <div class="function-island">
-      <button data-cmd="h1" class="format-btn">H1</button>
-      <button data-cmd="h2" class="format-btn">H2</button>
-      <button data-cmd="h3" class="format-btn">H3</button>
-      <button data-cmd="bold" class="format-btn">Grassetto</button>
-      <button data-cmd="unorderedList" class="format-btn">Elenco</button>
-      <button id="insert-link-btn" class="format-btn">Inserisci Link</button>
-      &nbsp;
-      <button id="save-btn">Salva Documento</button>
-      <button id="settings-btn" class="secondary-btn">Impostazioni</button>
-      
-      <button id="download-btn" class="format-btn">Download</button>
+    <div class="function-island" id="toolbar">
+      <!-- Formattazione Testo -->
+      <button data-cmd="bold" class="format-btn icon-btn" title="Grassetto (Ctrl+B)"><i data-lucide="bold"></i></button>
+      <button data-cmd="italic" class="format-btn icon-btn" title="Corsivo (Ctrl+I)"><i data-lucide="italic"></i></button>
+      <button data-cmd="underline" class="format-btn icon-btn" title="Sottolineato (Ctrl+U)"><i data-lucide="underline"></i></button>
+      <span class="divider"></span>
+      <!-- Formattazione Paragrafo -->
+      <button data-cmd="h1" class="format-btn icon-btn" title="Titolo 1"><i data-lucide="heading-1"></i></button>
+      <button data-cmd="h2" class="format-btn icon-btn" title="Titolo 2"><i data-lucide="heading-2"></i></button>
+      <button data-cmd="h3" class="format-btn icon-btn" title="Titolo 3"><i data-lucide="heading-3"></i></button>
+      <button data-cmd="unorderedList" class="format-btn icon-btn" title="Elenco Puntato"><i data-lucide="list"></i></button>
+      <span class="divider"></span>
+      <!-- Inserimento -->
+      <button id="insert-link-btn" class="format-btn icon-btn" title="Inserisci Link (Ctrl+K)"><i data-lucide="link"></i></button>
+      <span class="divider"></span>
+      <!-- Azioni -->
+      <button id="share-btn" class="secondary-btn icon-btn" title="Condividi tramite link pubblico"><i data-lucide="share-2"></i></button>
+      <button id="save-btn" class="icon-btn" title="Salva Documento (Ctrl+S)"><i data-lucide="save"></i></button>
+      <button id="settings-btn" class="secondary-btn icon-btn" title="Impostazioni"><i data-lucide="settings"></i></button>
+      <select id="download-format" class="format-select">
+        <option value="pdf">PDF (beta)</option>
+        <option value="docx">Word (beta)</option>
+        <option value="md">Markdown</option>
+        <option value="txt">Testo (.txt)</option>
+        <option value="quill">Quill (.quill)</option>
+      </select>
+      <button id="download-btn" class="format-btn icon-btn" title="Download"><i data-lucide="download"></i></button>
     </div>
-      &nbsp;
     <div class="autosave-badge" id="autosave-badge">Auto-save in attesa…</div>
     <div id="editor" contenteditable="true" placeholder="Scrivi qui..."></div>
   </main>
 
 <div class="modal hidden" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-  <div class="modal-content">
+  <div class="modal-content modal-content-lg">
     <h2 id="settings-title">Impostazioni documento</h2>
 
-    <label class="checkbox-row">
-      <input type="checkbox" id="encrypt-toggle">
-      <p>Cifra il documento con password</p>
-    </label>
+    <section class="settings-section">
+      <section class="settings-section settings-section-danger">
+        <div class="settings-section-head">
+          <span class="settings-section-icon settings-section-icon-danger"><i data-lucide="trash-2"></i></span>
+          <div>
+            <h3>Zona pericolosa</h3>
+            <p class="settings-section-desc">Azione permanente e irreversibile</p>
+          </div>
+        </div>
 
-    <label for="password-input">Password</label>
-    <input type="password" id="password-input" placeholder="Inserisci una password forte" disabled>
+        <div class="settings-section-body">
+          <button id="delete-btn">Elimina documento</button>
+        </div>
+      </section>
+    </section>
 
-    <p class="warning-text">
-      ⚠️ Attenzione: la password è irrecuperabile. Se la perdi, il documento resterà illeggibile.
-    </p>
-
- 
+    
 
     <div class="modal-buttons">
-      <button id="delete-btn">Elimina Documento</button>
-      <button id="settings-close-btn" class="secondary-btn">Chiudi e Salva</button>
+      <button id="settings-close-btn" class="secondary-btn">Chiudi e salva</button>
     </div>
 
+  </div>
+</div>
+
+<div class="modal hidden" id="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title">
+  <div class="modal-content">
+    <h2 id="share-title">Condivisione pubblica</h2>
+
+    <section class="settings-section">
+      <div class="settings-section-head">
+        <span class="settings-section-icon"><i data-lucide="globe"></i></span>
+        <div>
+          <h3>Link pubblico</h3>
+          <p class="settings-section-desc">Chiunque abbia il link potrà leggere il documento</p>
+        </div>
+      </div>
+
+      <div class="settings-section-body">
+        <label class="checkbox-row">
+          <input type="checkbox" id="public-share-toggle">
+          <p>Link pubblico attivo</p>
+        </label>
+
+        <div class="share-link-section">
+          <label>Link di condivisione</label>
+          <div class="share-link-row">
+            <input type="text" id="share-link-input" readonly>
+            <button id="copy-link-btn" class="secondary-btn">Copia</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="modal-buttons">
+      <button id="share-close-btn" class="secondary-btn">Chiudi</button>
+    </div>
   </div>
 </div>
 
@@ -62,6 +115,9 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 
   <script src="../assets/js/editor.js"></script>
 </body>

@@ -6,7 +6,7 @@
   <title>MatteDev Quill - Dashboard</title>
   <!-- Usa solo uno dei due CSS, in base a dove si trova il file -->
   <link rel="stylesheet" href="../assets/css/style.css">
-  
+
 </head>
 <body>
 
@@ -28,9 +28,31 @@
   </header>
 
   <main>
-    <!-- Cliccando qui, l'editor capirà che deve creare un file su Firebase -->
-<a href="editor.html?action=new" id="new-doc-btn" class="new-doc-btn">Nuovo Documento Quill</a>
-    <div class="document-list" id="document-list"></div>
+    <div class="dashboard-toolbar">
+      <!-- Cliccando qui, l'editor capirà che deve creare un file su Firebase -->
+      <a href="editor.html?action=new" id="new-doc-btn" class="new-doc-btn new-doc">
+        <i data-lucide="plus"></i> Nuovo documento
+      </a>
+
+      <div class="toolbar-controls">
+        <div class="search-wrap">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="doc-search" placeholder="Cerca documenti…" autocomplete="off">
+        </div>
+
+        <select id="doc-sort" class="format-select" title="Ordina documenti">
+          <option value="name-asc">Nome A → Z</option>
+          <option value="name-desc">Nome Z → A</option>
+        </select>
+
+        <div class="view-toggle" role="group" aria-label="Modalità visualizzazione">
+          <button id="view-grid-btn" class="icon-btn active" title="Vista a griglia" aria-pressed="true"><i data-lucide="layout-grid"></i></button>
+          <button id="view-list-btn" class="icon-btn" title="Vista a elenco" aria-pressed="false"><i data-lucide="list"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="document-list grid-view" id="document-list"></div>
   </main>
 
   <footer class="page-footer">
@@ -41,7 +63,60 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
 
   <script src="../assets/js/dash.js"></script>
+
+  <script>
+    // UI: ricerca, ordinamento, toggle vista. Indipendente da dash.js.
+    (function () {
+      if (window.lucide) lucide.createIcons();
+
+      var list = document.getElementById('document-list');
+      var gridBtn = document.getElementById('view-grid-btn');
+      var listBtn = document.getElementById('view-list-btn');
+      var searchInput = document.getElementById('doc-search');
+      var sortSelect = document.getElementById('doc-sort');
+      var STORAGE_KEY = 'matteDevQuillViewMode';
+
+      function setView(mode) {
+        list.classList.toggle('list-view', mode === 'list');
+        list.classList.toggle('grid-view', mode !== 'list');
+        gridBtn.classList.toggle('active', mode !== 'list');
+        listBtn.classList.toggle('active', mode === 'list');
+        gridBtn.setAttribute('aria-pressed', String(mode !== 'list'));
+        listBtn.setAttribute('aria-pressed', String(mode === 'list'));
+        try { localStorage.setItem(STORAGE_KEY, mode); } catch (e) {}
+      }
+
+      var savedMode = null;
+      try { savedMode = localStorage.getItem(STORAGE_KEY); } catch (e) {}
+      setView(savedMode === 'list' ? 'list' : 'grid');
+
+      gridBtn.addEventListener('click', function () { setView('grid'); });
+      listBtn.addEventListener('click', function () { setView('list'); });
+
+      searchInput.addEventListener('input', function () {
+        var query = searchInput.value.trim().toLowerCase();
+        var cards = list.querySelectorAll('.doc-card');
+        cards.forEach(function (card) {
+          var titleEl = card.querySelector('h2');
+          var title = titleEl ? titleEl.textContent.toLowerCase() : '';
+          card.style.display = title.includes(query) ? '' : 'none';
+        });
+      });
+
+      sortSelect.addEventListener('change', function () {
+        var cards = Array.prototype.slice.call(list.querySelectorAll('.doc-card'));
+        var dir = sortSelect.value === 'name-desc' ? -1 : 1;
+        cards.sort(function (a, b) {
+          var ta = (a.querySelector('h2') || {}).textContent || '';
+          var tb = (b.querySelector('h2') || {}).textContent || '';
+          return dir * ta.localeCompare(tb, 'it', { sensitivity: 'base' });
+        });
+        cards.forEach(function (card) { list.appendChild(card); });
+      });
+    })();
+  </script>
 </body>
 </html>

@@ -29,13 +29,20 @@ auth.onAuthStateChanged(user => {
   if (!user) {
     window.location.href = "login.html";
   } else {
-    loadUserProfile(user.uid);
-    loadDocuments(user.uid);
+    Promise.all([
+      loadUserProfile(user.uid),
+      loadDocuments(user.uid)
+    ]).then(() => {
+      document.getElementById('loading').classList.add('hidden');
+    }).catch(err => {
+      console.error("Errore durante il caricamento:", err);
+      document.getElementById('loading').classList.add('hidden');
+    });
   }
 });
 
 function loadUserProfile(uid) {
-  db.collection("users").doc(uid).get().then(doc => {
+  return db.collection("users").doc(uid).get().then(doc => {
     const data = doc.exists ? doc.data() : {};
     const username = data.username || "Utente";
     const pfp = data.pfp || "https://via.placeholder.com/40";
@@ -56,36 +63,61 @@ function loadDocuments(uid) {
   const docList = document.getElementById("document-list");
   docList.innerHTML = "";
 
-  db.collection("users").doc(uid).collection("documents")
+  return db.collection("users").doc(uid).collection("documents")
     .get()
     .then(snapshot => {
       snapshot.forEach(doc => {
         const data = doc.data();
         const card = document.createElement("div");
         card.classList.add("doc-card");
-        card.innerHTML = `
-          <h2>${data.title || "Documento senza titolo"}</h2>
-          <p>Apri e continua a scrivere nel tuo spazio personale.</p>
-          <button onclick="openDoc('${doc.id}')">Apri</button>
-        `;
+
+        const h2 = document.createElement("h2");
+        h2.textContent = data.title || "Documento senza titolo";
+
+        const p = document.createElement("p");
+        p.textContent = "Apri e continua a scrivere nel tuo spazio personale.";
+
+        const btn = document.createElement("button");
+        btn.textContent = "Apri";
+        btn.onclick = () => openDoc(doc.id, uid);
+
+        card.appendChild(h2);
+        card.appendChild(p);
+        card.appendChild(btn);
+
         docList.appendChild(card);
       });
     });
 }
 
-function openDoc(docId) {
-  localStorage.setItem("currentDocId", docId);
-  window.location.href = "editor.html";
+function openDoc(docId, ownerId) {
+  window.location.href = `editor.html?owner=${ownerId}&id=${docId}`;
 }
 
-document.getElementById("new-doc-btn").addEventListener("click", () => {
-  const title = prompt("Titolo del nuovo documento:");
-  const user = auth.currentUser;
-  if (!title || !user) return;
+// Genera un id univoco PRIMA di navigare e lo passa esplicitamente nell'URL.
+// Prima si usava editor.html?action=new senza id: l'editor cadeva su un
+// fallback a localStorage e riapriva l'ultimo documento invece di crearne
+// uno nuovo. Qui inoltre si evita la doppia creazione (niente più .add()
+// separato: il documento viene creato una sola volta, dall'editor stesso).
+document.getElementById("new-doc-btn").addEventListener("click", (e) => {
+  e.preventDefault();
 
-  db.collection("users").doc(user.uid).collection("documents")
-    .add({ title, content: "", isEncrypted: false })
-    .then(() => loadDocuments(user.uid));
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const title = prompt("Titolo del nuovo documento:");
+  if (!title) return;
+
+  const newDocRef = db.collection("users").doc(user.uid).collection("documents").doc();
+
+  const params = new URLSearchParams({
+    owner: user.uid,
+    id: newDocRef.id,
+    action: "new",
+    title: title
+  });
+
+  window.location.href = `editor.html?${params.toString()}`;
 });
 
 profileIsland.addEventListener("click", () => {
@@ -105,17 +137,11 @@ document.addEventListener("click", event => {
   }
 });
 
-// Mostra il loading screen all'avvio
-  const loading = document.getElementById('loading');
+// Il loading screen viene nascosto in onAuthStateChanged
 
-  // Dopo 3 secondi, nasconde il loading screen
-  setTimeout(() => {
-    loading.classList.add('hidden');
-  }, 1000); // 3000ms = 3 secondi
 
 });
-// Opzione B: Rendila globale
-window.openDoc = function(docId) {
-  localStorage.setItem("currentDocId", docId);
-  window.location.href = "editor.html";
+
+window.openDoc = function(docId, ownerId) {
+  window.location.href = `editor.html?owner=${ownerId}&id=${docId}`;
 };
